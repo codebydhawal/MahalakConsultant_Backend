@@ -126,12 +126,12 @@ public class AuthController {
         );
     }
 
-    @PutMapping("/update-role")
+    @PatchMapping("/update-role-status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<UserResponse>> updateUserRole(
-            @RequestParam Long userId,@RequestParam String role) {
+    public ResponseEntity<ApiResponse<UserResponse>> updateUserRoleAndStatus(
+            @RequestParam Long userId,@RequestParam String role, @RequestParam String status) {
 
-        UserResponse response = authService.updateUserRole(userId, role);
+        UserResponse response = authService.updateUserRoleAndStatus(userId, role,status);
 
         return ResponseEntity.ok(
                 ApiResponse.success(

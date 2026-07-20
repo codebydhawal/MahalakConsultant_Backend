@@ -34,5 +34,5 @@ build/
 
 
 ##### google cridentilas ###########
-src/main/resources/google/credentials.json
+src/main/resources/google/
 tokens/

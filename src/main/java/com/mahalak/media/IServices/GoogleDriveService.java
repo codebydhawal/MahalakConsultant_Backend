@@ -10,6 +10,8 @@ public interface GoogleDriveService {
 
     FileUploadResponseDto upload(MultipartFile file);
 
+    FileUploadResponseDto upload(MultipartFile file,String fileName);
+
     DownloadResponse download(String fileId) throws Exception;
 
     void delete(String fileId);

@@ -69,6 +69,8 @@ public class SecurityConfig {
                         // authenticated URL's
                         .requestMatchers("/rest/auth/register", "/rest/auth/login").permitAll()
                         .requestMatchers("/rest/auth/**").authenticated()
+                        .requestMatchers("/rest/product/delete").hasRole("ADMIN")
+                        .requestMatchers("/rest/product/**").authenticated()
 
                         .anyRequest().authenticated()
                 )

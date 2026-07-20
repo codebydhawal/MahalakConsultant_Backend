@@ -23,7 +23,7 @@ public interface AuthService {
 
     UserResponse deleteUser(Long userId);
 
-    UserResponse updateUserRole(Long userId, String role);
+    UserResponse updateUserRoleAndStatus(Long userId, String role,String status);
 
 //
 //    ResponseEntity<LogInResponse> login(LogInRequest logInRequest, HttpServletRequest request);

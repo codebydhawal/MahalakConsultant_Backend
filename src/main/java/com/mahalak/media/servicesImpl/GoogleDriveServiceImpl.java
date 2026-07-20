@@ -79,6 +79,55 @@ public class GoogleDriveServiceImpl implements GoogleDriveService {
         }
     }
 
+    @Override
+    public FileUploadResponseDto upload(MultipartFile multipartFile,String fileName) {
+
+        try {
+
+            Drive drive = getDriveService();
+
+            File metadata = new File();
+            metadata.setName(fileName);
+
+            if (folderId != null && !folderId.isBlank()) {
+                metadata.setParents(List.of(folderId));
+            }
+
+            java.io.File tempFile = java.io.File.createTempFile(
+                    "upload-",
+                    multipartFile.getOriginalFilename()
+            );
+
+            multipartFile.transferTo(tempFile);
+
+            FileContent mediaContent = new FileContent(
+                    multipartFile.getContentType(),
+                    tempFile
+            );
+
+            File uploadedFile = drive.files()
+                    .create(metadata, mediaContent)
+                    .setFields("id,name,size,mimeType")
+                    .execute();
+
+            tempFile.delete();
+
+            return FileUploadResponseDto.builder()
+                    .fileId(uploadedFile.getId())
+                    .fileName(uploadedFile.getName())
+                    .mimeType(uploadedFile.getMimeType())
+                    .size(uploadedFile.getSize())
+                    .downloadUrl("https://drive.google.com/uc?id=" + uploadedFile.getId())
+                    .build();
+
+        } catch (Exception e) {
+
+            log.error("Google Drive Upload Error", e);
+            throw new RuntimeException("Failed to upload file to Google Drive", e);
+
+        }
+    }
+
 //    @Override
 //    public byte[] download(String fileId) {
 //

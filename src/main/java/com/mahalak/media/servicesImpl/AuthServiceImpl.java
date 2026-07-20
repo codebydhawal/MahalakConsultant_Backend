@@ -1,6 +1,5 @@
 package com.mahalak.media.servicesImpl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mahalak.media.IServices.AuthService;
 import com.mahalak.media.auth.JwtUtil;
 import com.mahalak.media.dto.request.LoginRequest;
@@ -21,12 +20,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.auth.InvalidCredentialsException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.thymeleaf.TemplateEngine;
 
 import java.util.List;
 
@@ -37,7 +32,6 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
-
     private final RoleRepository roleRepository;
 
     private final BCryptPasswordEncoder passwordEncoder;
@@ -49,9 +43,7 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateResourceException("user with this Email already registered.");
         }
 
-        Role role = roleRepository.findByRole(request.getRole())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Default role not found."));
+        Role role = roleRepository.findByRole(request.getRole()).orElseThrow(() -> new ResourceNotFoundException("Default role not found."));
 
         User user = userMapper.toEntity(request);
 
@@ -66,28 +58,25 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponse login(LoginRequest request) throws InvalidCredentialsException {
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() ->
-                        new InvalidCredentialsException("Invalid email or password."));
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new InvalidCredentialsException("Invalid email or password."));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException("Invalid email or password.");
         }
 
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new BadRequestException("Your account has been deactivated. Please contact the administrator.");
+        }
+
         String token = jwtUtil.generateToken(user.getEmail());
 
-        return LoginResponse.builder()
-                .token(token)
-                .email(user.getEmail())
-                .build();
+        return LoginResponse.builder().token(token).email(user.getEmail()).build();
     }
 
     @Override
     public UserResponse getUserById(Long userId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found with id : " + userId));
+        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found with id : " + userId));
 
         return userMapper.toResponse(user);
     }
@@ -101,15 +90,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserResponse updateUser(Long userId,
-                                   UpdateUserRequest request) {
+    public UserResponse updateUser(Long userId, UpdateUserRequest request) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found."));
+        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
-        if (!user.getEmail().equals(request.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
+        if (!user.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
 
             throw new DuplicateResourceException("Email already exists.");
         }
@@ -127,10 +112,7 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("Soft deleting user with id : {}", userId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found with id : " + userId));
+        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found with id : " + userId));
 
         if (user.getStatus() == UserStatus.INACTIVE) {
             throw new BadRequestException("User is already inactive.");
@@ -146,16 +128,30 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserResponse updateUserRole(Long userId, String role) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found."));
+    public UserResponse updateUserRoleAndStatus(Long userId, String role, String status) {
 
-        Role role1 = roleRepository.findByRole(role)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Role not found."));
+        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
-        user.setRole(role1);
+        Role roleEntity = roleRepository.findByRole(role).orElseThrow(() -> new ResourceNotFoundException("Role not found."));
+
+        UserStatus userStatus = UserStatus.valueOf(status.toUpperCase());
+
+        boolean sameRole = user.getRole().getRole().equalsIgnoreCase(roleEntity.getRole());
+        boolean sameStatus = user.getStatus() == userStatus;
+
+        // Throw only if nothing changed
+        if (sameRole && sameStatus) {
+            throw new BadRequestException("No changes detected.");
+        }
+
+        // Update only the changed fields
+        if (!sameRole) {
+            user.setRole(roleEntity);
+        }
+
+        if (!sameStatus) {
+            user.setStatus(userStatus);
+        }
 
         User updatedUser = userRepository.save(user);
 
