@@ -71,7 +71,11 @@ public class SecurityConfig {
                         .requestMatchers("/rest/auth/**").authenticated()
                         .requestMatchers("/rest/product/delete").hasRole("ADMIN")
                         .requestMatchers("/rest/product/**").authenticated()
+                        .requestMatchers("/rest/blog/pdf/**").permitAll()
 
+                        .requestMatchers("/rest/auth/**").authenticated()
+                        .requestMatchers("/rest/product/delete").hasRole("ADMIN")
+                        .requestMatchers("/rest/product/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

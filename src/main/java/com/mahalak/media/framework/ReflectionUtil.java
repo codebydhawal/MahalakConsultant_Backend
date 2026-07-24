@@ -4,12 +4,11 @@ import com.mahalak.media.annotations.Sheet;
 import com.mahalak.media.annotations.SheetColumn;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.stream.Collectors;
 
 public final class ReflectionUtil {
 
@@ -110,9 +109,6 @@ public final class ReflectionUtil {
 
         List<Object> row = new ArrayList<>();
 
-//        DateTimeFormatter formatter =
-//                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
         try {
 
             for (Field field : getSheetFields(entity.getClass())) {
@@ -131,9 +127,21 @@ public final class ReflectionUtil {
 
                     row.add(date.toString());
 
+                } else if (value instanceof Collection<?> collection) {
+
+                    row.add(
+                            collection.stream()
+                                    .map(Object::toString)
+                                    .collect(Collectors.joining(","))
+                    );
+
+                } else if (value.getClass().isEnum()) {
+
+                    row.add(value.toString());
+
                 } else {
 
-                    row.add(value);
+                    row.add(value.toString());
                 }
             }
 
@@ -160,10 +168,31 @@ public final class ReflectionUtil {
             for (int i = 0; i < fields.size() && i < row.size(); i++) {
 
                 Field field = fields.get(i);
-
                 Object value = row.get(i);
 
-                field.set(entity, convert(value, field.getType()));
+                if (field.getType().equals(List.class)) {
+
+                    if (value == null || value.toString().isBlank()) {
+
+                        field.set(entity, new ArrayList<>());
+
+                    } else {
+
+                        field.set(
+                                entity,
+                                Arrays.stream(value.toString().split(","))
+                                        .map(String::trim)
+                                        .filter(s -> !s.isEmpty())
+                                        .toList()
+                        );
+
+                    }
+
+                } else {
+
+                    field.set(entity, convert(value, field.getType()));
+
+                }
             }
 
             return entity;
@@ -177,41 +206,55 @@ public final class ReflectionUtil {
     /**
      * Convert Google Value to Java Type
      */
-    private static Object convert(Object value,
-                                  Class<?> type) {
+    private static Object convert(Object value, Class<?> type) {
 
         if (value == null) {
             return null;
         }
 
-        String str = value.toString();
+        String str = value.toString().trim();
 
         if (type == String.class) {
             return str;
         }
 
         if (type == Integer.class || type == int.class) {
-            return Integer.parseInt(str);
+            return str.isBlank() ? null : Integer.parseInt(str);
         }
 
         if (type == Long.class || type == long.class) {
-            return Long.parseLong(str);
+            return str.isBlank() ? null : Long.parseLong(str);
         }
 
         if (type == Double.class || type == double.class) {
-            return Double.parseDouble(str);
+            return str.isBlank() ? null : Double.parseDouble(str);
         }
 
         if (type == Boolean.class || type == boolean.class) {
-            return Boolean.parseBoolean(str);
+            return str.isBlank() ? false : Boolean.parseBoolean(str);
         }
 
         if (type == LocalDateTime.class) {
-            return LocalDateTime.parse(str, FORMATTER);
+            return str.isBlank() ? null : LocalDateTime.parse(str, FORMATTER);
         }
 
         if (type == LocalDate.class) {
-            return LocalDate.parse(str);
+            return str.isBlank() ? null : LocalDate.parse(str);
+        }
+
+        if (type.isEnum()) {
+            return Enum.valueOf((Class<Enum>) type, str);
+        }
+
+        if (type == List.class) {
+            if (str.isBlank()) {
+                return new ArrayList<String>();
+            }
+
+            return Arrays.stream(str.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
         }
 
         return str;

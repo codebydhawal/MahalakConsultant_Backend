@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.google.api.services.drive.model.Permission;
+
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
@@ -61,6 +63,31 @@ public class GoogleDriveServiceImpl implements GoogleDriveService {
                     .setFields("id,name,size,mimeType")
                     .execute();
 
+            Permission permission = new Permission();
+            permission.setType("anyone");
+            permission.setRole("reader");
+
+            drive.permissions()
+                    .create(uploadedFile.getId(), permission)
+                    .execute();
+
+            String downloadUrl = "";
+
+            if (uploadedFile.getMimeType().startsWith("image")) {
+
+                downloadUrl =
+                        "https://drive.google.com/thumbnail?id="
+                                + uploadedFile.getId()
+                                + "&sz=w1000";
+
+            } else {
+
+                downloadUrl =
+                        "https://drive.google.com/uc?export=download&id="
+                                + uploadedFile.getId();
+
+            }
+
             tempFile.delete();
 
             return FileUploadResponseDto.builder()
@@ -68,8 +95,9 @@ public class GoogleDriveServiceImpl implements GoogleDriveService {
                     .fileName(uploadedFile.getName())
                     .mimeType(uploadedFile.getMimeType())
                     .size(uploadedFile.getSize())
-                    .downloadUrl("https://drive.google.com/uc?id=" + uploadedFile.getId())
-                    .build();
+//                    .downloadUrl("https://drive.google.com/uc?id=" + uploadedFile.getId())
+//                    .downloadUrl("https://drive.google.com/thumbnail?id=" + uploadedFile.getId() + "&sz=w1000")
+                    .downloadUrl(downloadUrl).build();
 
         } catch (Exception e) {
 
@@ -80,7 +108,7 @@ public class GoogleDriveServiceImpl implements GoogleDriveService {
     }
 
     @Override
-    public FileUploadResponseDto upload(MultipartFile multipartFile,String fileName) {
+    public FileUploadResponseDto upload(MultipartFile multipartFile, String fileName) {
 
         try {
 
@@ -110,6 +138,31 @@ public class GoogleDriveServiceImpl implements GoogleDriveService {
                     .setFields("id,name,size,mimeType")
                     .execute();
 
+            Permission permission = new Permission();
+            permission.setType("anyone");
+            permission.setRole("reader");
+
+            drive.permissions()
+                    .create(uploadedFile.getId(), permission)
+                    .execute();
+
+            String downloadUrl = "";
+
+            if (uploadedFile.getMimeType().startsWith("image")) {
+
+                downloadUrl =
+                        "https://drive.google.com/thumbnail?id="
+                                + uploadedFile.getId()
+                                + "&sz=w1000";
+
+            } else {
+
+                downloadUrl =
+                        "https://drive.google.com/uc?export=download&id="
+                                + uploadedFile.getId();
+
+            }
+
             tempFile.delete();
 
             return FileUploadResponseDto.builder()
@@ -117,8 +170,9 @@ public class GoogleDriveServiceImpl implements GoogleDriveService {
                     .fileName(uploadedFile.getName())
                     .mimeType(uploadedFile.getMimeType())
                     .size(uploadedFile.getSize())
-                    .downloadUrl("https://drive.google.com/uc?id=" + uploadedFile.getId())
-                    .build();
+//                    .downloadUrl("https://drive.google.com/uc?id=" + uploadedFile.getId())
+//                    .downloadUrl("https://drive.google.com/thumbnail?id=" + uploadedFile.getId() + "&sz=w1000")
+                    .downloadUrl(downloadUrl).build();
 
         } catch (Exception e) {
 
