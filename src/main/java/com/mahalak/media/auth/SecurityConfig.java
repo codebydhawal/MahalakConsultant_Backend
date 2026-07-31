@@ -76,6 +76,8 @@ public class SecurityConfig {
                         .requestMatchers("/rest/auth/**").authenticated()
                         .requestMatchers("/rest/product/delete").hasRole("ADMIN")
                         .requestMatchers("/rest/product/**").authenticated()
+                        .requestMatchers("/rest/project/delete").hasRole("ADMIN")
+                        .requestMatchers("/rest/project/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
