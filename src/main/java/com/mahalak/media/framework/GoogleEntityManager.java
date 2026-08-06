@@ -6,7 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -17,6 +19,9 @@ public class GoogleEntityManager {
     private final HeaderSynchronizer headerSynchronizer;
 
     private final GoogleIdGenerator googleIdGenerator;
+
+    private final Map<String, CacheEntry<List<?>>> cache =
+            new ConcurrentHashMap<>();
 
     /**
      * Save Entity
@@ -54,6 +59,7 @@ public class GoogleEntityManager {
 
             // Save Row
             googleSheetService.appendRow(sheetName, row);
+            cache.remove(sheetName);
 
         } catch (Exception e) {
 
@@ -71,13 +77,38 @@ public class GoogleEntityManager {
             String sheetName =
                     ReflectionUtil.getSheetName(clazz);
 
+            // Check Cache
+            CacheEntry<List<?>> cacheEntry = cache.get(sheetName);
+
+            if (cacheEntry != null) {
+
+                long currentTime = System.currentTimeMillis();
+
+                // Cache still valid
+                 long ttl = getCacheTTL(clazz);
+
+                if (currentTime - cacheEntry.getTimestamp() < ttl) {
+
+                    return (List<T>) cacheEntry.getData();
+                }
+            }
+
+            // Cache Miss / Expired
             List<List<Object>> rows =
                     googleSheetService.getAllRows(sheetName);
 
-            return rows.stream()
-                    .skip(1) // Skip Header Row
+            List<T> entities = rows.stream()
+                    .skip(1)
                     .map(row -> ReflectionUtil.toEntity(clazz, row))
                     .toList();
+
+            // Store in Cache
+            cache.put(
+                    sheetName,
+                    new CacheEntry<>(entities, System.currentTimeMillis())
+            );
+
+            return entities;
 
         } catch (Exception e) {
 
@@ -96,14 +127,15 @@ public class GoogleEntityManager {
             Field idField =
                     ReflectionUtil.getIdField(clazz);
 
+            idField.setAccessible(true);
+
             return findAll(clazz)
                     .stream()
                     .filter(entity -> {
 
                         try {
 
-                            Object value =
-                                    idField.get(entity);
+                            Object value = idField.get(entity);
 
                             return value != null &&
                                     value.equals(id);
@@ -113,7 +145,8 @@ public class GoogleEntityManager {
                             return false;
                         }
 
-                    }).findFirst();
+                    })
+                    .findFirst();
 
         } catch (Exception e) {
 
@@ -141,7 +174,7 @@ public class GoogleEntityManager {
                     ReflectionUtil.toRow(entity);
 
             googleSheetService.updateRow(sheetName, id.toString(), row);
-
+            cache.remove(sheetName);
         } catch (Exception e) {
 
             throw new RuntimeException("Failed to update entity.", e);
@@ -160,11 +193,25 @@ public class GoogleEntityManager {
                     ReflectionUtil.getSheetName(clazz);
 
             googleSheetService.deleteRow(sheetName, id.toString());
-
+            cache.remove(sheetName);
         } catch (Exception e) {
 
             throw new RuntimeException("Failed to delete entity.", e);
         }
     }
 
+    private boolean shouldCache(Class<?> clazz) {
+
+        return clazz.isAnnotationPresent(CacheableEntity.class);
+
+    }
+
+    private long getCacheTTL(Class<?> clazz) {
+
+        CacheableEntity annotation =
+                clazz.getAnnotation(CacheableEntity.class);
+
+        return annotation.ttl() * 1000;
+
+    }
 }

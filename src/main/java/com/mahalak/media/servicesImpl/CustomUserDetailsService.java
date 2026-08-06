@@ -1,5 +1,6 @@
 package com.mahalak.media.servicesImpl;
 
+import com.mahalak.media.auth.CustomUserDetails;
 import com.mahalak.media.entity.User;
 import com.mahalak.media.repository.UserRepository;
 import org.springframework.security.core.GrantedAuthority;
@@ -43,12 +44,12 @@ public class CustomUserDetailsService implements UserDetailsService {
             authorities = List.of();
         }
 
-        return org.springframework.security.core.userdetails.User
-                .builder()
-                .username(user.getEmail())
-                .password(user.getPassword())
-                .authorities(authorities)
-                .build();
+        return new CustomUserDetails(
+                user.getId(),
+                user.getEmail(),
+                user.getPassword(),
+                authorities
+        );
     }
 
 

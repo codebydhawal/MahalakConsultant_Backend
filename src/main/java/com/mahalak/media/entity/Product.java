@@ -2,6 +2,7 @@ package com.mahalak.media.entity;
 
 import com.mahalak.media.annotations.Sheet;
 import com.mahalak.media.annotations.SheetColumn;
+import com.mahalak.media.framework.CacheableEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Sheet(name = "Products")
+@CacheableEntity(ttl = 60)
 public class Product {
 
     @SheetColumn(name = "Product_Id", id = true, prefix = "PRD", order = 1)

@@ -37,7 +37,7 @@ public class User extends BaseEntity {
     @Column(name = "Status", nullable = false)
     private UserStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 

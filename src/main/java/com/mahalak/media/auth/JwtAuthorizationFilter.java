@@ -1,6 +1,7 @@
 package com.mahalak.media.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mahalak.media.servicesImpl.CustomUserDetailsService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,11 +27,12 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private static final Logger logger =
             LoggerFactory.getLogger(JwtAuthorizationFilter.class);
-
+    private final CustomUserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
     private final ObjectMapper mapper;
 
-    public JwtAuthorizationFilter(JwtUtil jwtUtil, ObjectMapper mapper) {
+    public JwtAuthorizationFilter(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil, ObjectMapper mapper) {
+        this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
         this.mapper = mapper;
     }
@@ -74,15 +76,17 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
                 String email = claims.getSubject();
 
+                CustomUserDetails userDetails =
+                        (CustomUserDetails) userDetailsService.loadUserByUsername(email);
+
                 Authentication authentication =
                         new UsernamePasswordAuthenticationToken(
-                                email,
+                                userDetails,
                                 null,
-                                new ArrayList<>()
+                                userDetails.getAuthorities()
                         );
 
-                SecurityContextHolder.getContext()
-                        .setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
 
                 logger.info("Authenticated User: {}", email);
             }

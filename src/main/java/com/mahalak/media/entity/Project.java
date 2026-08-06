@@ -3,6 +3,7 @@ package com.mahalak.media.entity;
 import com.mahalak.media.annotations.Sheet;
 import com.mahalak.media.annotations.SheetColumn;
 import com.mahalak.media.enums.ProjectCategory;
+import com.mahalak.media.framework.CacheableEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Sheet(name = "Projects")
+@CacheableEntity(ttl = 300)
 public class Project {
 
     @SheetColumn(name = "Project_Id", id = true, prefix = "PRJ", order = 1)

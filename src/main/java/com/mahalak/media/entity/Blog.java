@@ -3,6 +3,7 @@ package com.mahalak.media.entity;
 import com.mahalak.media.annotations.Sheet;
 import com.mahalak.media.annotations.SheetColumn;
 import com.mahalak.media.enums.BlogStatus;
+import com.mahalak.media.framework.CacheableEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Sheet(name = "Blogs")
+@CacheableEntity(ttl = 300)
 public class Blog {
 
     @SheetColumn(name = "Blog_Id", id = true, prefix = "BLG", order = 1)
