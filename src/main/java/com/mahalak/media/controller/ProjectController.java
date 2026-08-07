@@ -2,6 +2,7 @@ package com.mahalak.media.controller;
 
 import com.mahalak.media.IServices.IProjectService;
 import com.mahalak.media.dto.request.ProjectRequest;
+import com.mahalak.media.dto.response.ProductResponse;
 import com.mahalak.media.dto.response.ProjectDocumentResponse;
 import com.mahalak.media.dto.response.ProjectResponse;
 import com.mahalak.media.dto.wrapper.ApiResponse;
@@ -115,5 +116,17 @@ public class ProjectController {
         return ResponseEntity.ok(
                 projectService.getProjectDocumentContent(projectId)
         );
+    }
+
+    @GetMapping("/random")
+    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getRandomProjects() {
+
+      List<ProjectResponse> projectResponseList=  projectService.getRandomProjects();
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Random projects fetched successfully.",
+                projectResponseList
+        ));
     }
 }

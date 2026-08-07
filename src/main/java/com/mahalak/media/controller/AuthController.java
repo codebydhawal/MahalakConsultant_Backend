@@ -1,6 +1,7 @@
 package com.mahalak.media.controller;
 
 import com.mahalak.media.IServices.AuthService;
+import com.mahalak.media.dto.request.BlogRequest;
 import com.mahalak.media.dto.request.LoginRequest;
 import com.mahalak.media.dto.request.UpdateUserRequest;
 import com.mahalak.media.dto.response.LoginResponse;
@@ -12,10 +13,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.auth.InvalidCredentialsException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -94,12 +97,13 @@ public class AuthController {
     /**
      * Update User
      */
-    @PutMapping("/update")
+    @PutMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @RequestParam Long userId,
-            @Valid @RequestBody UpdateUserRequest request) {
+            @Valid @RequestPart("request") UpdateUserRequest request,
+            @RequestPart(value = "profileImage", required = false) MultipartFile profileImage) {
 
-        UserResponse response = authService.updateUser(userId, request);
+        UserResponse response = authService.updateUser(userId, request,profileImage);
 
         return ResponseEntity.ok(
                 ApiResponse.success(
@@ -129,9 +133,9 @@ public class AuthController {
     @PatchMapping("/update-role-status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> updateUserRoleAndStatus(
-            @RequestParam Long userId,@RequestParam String role, @RequestParam String status) {
+            @RequestParam Long userId, @RequestParam String role, @RequestParam String status) {
 
-        UserResponse response = authService.updateUserRoleAndStatus(userId, role,status);
+        UserResponse response = authService.updateUserRoleAndStatus(userId, role, status);
 
         return ResponseEntity.ok(
                 ApiResponse.success(

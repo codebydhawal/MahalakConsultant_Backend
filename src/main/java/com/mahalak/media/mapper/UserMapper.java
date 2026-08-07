@@ -15,19 +15,13 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 
-    /**
-     * Register Request -> User Entity
-     */
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "password", ignore = true)
     @Mapping(target = "role", ignore = true)
     @Mapping(target = "status", ignore = true)
     User toEntity(RegisterUserRequest request);
 
-
-    /**
-     * User Entity -> User Response
-     */
+    @Mapping(target = "addresses", ignore = true)
     @Mapping(
             target = "fullName",
             expression = "java(user.getFirstName() + \" \" + user.getLastName())"
@@ -38,16 +32,8 @@ public interface UserMapper {
     )
     UserResponse toResponse(User user);
 
-
-    /**
-     * List<User> -> List<UserResponse>
-     */
     List<UserResponse> toResponseList(List<User> users);
 
-
-    /**
-     * Update Existing User
-     */
     @BeanMapping(
             nullValuePropertyMappingStrategy =
                     NullValuePropertyMappingStrategy.IGNORE
@@ -55,13 +41,8 @@ public interface UserMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "password", ignore = true)
     @Mapping(target = "role", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "status", ignore = true)
-    @Mapping(target = "email", ignore = true)
-    @Mapping(target = "firstName", ignore = true)
-    @Mapping(target = "lastName", ignore = true)
-    void updateUser(UpdateUserRequest request,
+    User updateUser(UpdateUserRequest request,
                     @MappingTarget User user);
 
 }

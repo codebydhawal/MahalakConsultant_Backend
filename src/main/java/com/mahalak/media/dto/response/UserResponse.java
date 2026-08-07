@@ -8,9 +8,9 @@ import java.util.List;
 
 @Getter
 @Setter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class UserResponse {
 
     private Long id;
@@ -23,9 +23,17 @@ public class UserResponse {
 
     private String email;
 
-    private UserStatus status;
+    private String phoneNumber;
 
     private String role;
+
+    private UserStatus status;
+
+    private String profileImageName;
+
+    private String profileImageUrl;
+
+    private List<AddressResponse> addresses;
 
     private LocalDateTime createdAt;
 

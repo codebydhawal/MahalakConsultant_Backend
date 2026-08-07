@@ -72,14 +72,14 @@ public class ProductController {
     /**
      * Update Product
      */
-    @PatchMapping(value = "/update",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
             @RequestParam String productId,
             @Valid @RequestPart("request") ProductRequest request,
-            @RequestPart(value = "file",required = false) MultipartFile file) {
+            @RequestPart(value = "file", required = false) MultipartFile file) {
 
         ProductResponse response =
-                productService.updateProduct(productId, request,file);
+                productService.updateProduct(productId, request, file);
 
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),

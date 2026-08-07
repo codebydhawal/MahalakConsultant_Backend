@@ -23,4 +23,6 @@ public interface IProjectService {
     List<ProjectResponse> searchProjects(String keyword);
 
     ProjectDocumentResponse getProjectDocumentContent(String projectId) throws Exception;
+
+    List<ProjectResponse> getRandomProjects();
 }

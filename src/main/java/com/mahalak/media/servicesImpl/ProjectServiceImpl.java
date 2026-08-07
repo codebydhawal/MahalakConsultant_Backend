@@ -3,13 +3,16 @@ package com.mahalak.media.servicesImpl;
 import com.mahalak.media.IServices.GoogleDriveService;
 import com.mahalak.media.IServices.IProjectService;
 import com.mahalak.media.dto.request.ProjectRequest;
+import com.mahalak.media.dto.response.ProductResponse;
 import com.mahalak.media.dto.response.ProjectDocumentResponse;
 import com.mahalak.media.dto.response.ProjectResponse;
 import com.mahalak.media.dto.wrapper.DownloadResponse;
 import com.mahalak.media.dto.wrapper.FileUploadResponseDto;
+import com.mahalak.media.entity.Product;
 import com.mahalak.media.entity.Project;
 import com.mahalak.media.exception.ResourceNotFoundException;
 import com.mahalak.media.framework.GoogleEntityManager;
+import com.mahalak.media.mapper.ProductMapper;
 import com.mahalak.media.mapper.ProjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,8 +23,8 @@ import org.zwobble.mammoth.Result;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -118,6 +121,32 @@ public class ProjectServiceImpl implements IProjectService {
 
             return new ProjectDocumentResponse(result.getValue());
         }
+    }
+
+    @Override
+    public List<ProjectResponse> getRandomProjects() {
+
+        List<Project> projects = entityManager.findAll(Project.class)
+                .stream()
+                .filter(project ->
+                        !Boolean.TRUE.equals(project.getIsProjectDeleted()))
+                .toList();
+
+        if (projects.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Random random = new Random();
+        Set<Integer> indexes = new HashSet<>();
+
+        while (indexes.size() < Math.min(5, projects.size())) {
+            indexes.add(random.nextInt(projects.size()));
+        }
+
+        return indexes.stream()
+                .map(projects::get)
+                .map(ProjectMapper.INSTANCE::toResponse)
+                .collect(Collectors.toList());
     }
 
     private void handleThumbnailImage(Project project, MultipartFile thumbnailImage) {
