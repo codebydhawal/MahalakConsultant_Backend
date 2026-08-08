@@ -77,23 +77,41 @@ public class GoogleEntityManager {
             String sheetName =
                     ReflectionUtil.getSheetName(clazz);
 
-            // Check Cache
-            CacheEntry<List<?>> cacheEntry = cache.get(sheetName);
+            // Get cache TTL
+            long ttl = getCacheTTL(clazz);
 
-            if (cacheEntry != null) {
+            /*
+             * ============================================================
+             * CACHE ENABLED
+             * ============================================================
+             */
+            if (ttl > 0) {
 
-                long currentTime = System.currentTimeMillis();
+                CacheEntry<List<?>> cacheEntry =
+                        cache.get(sheetName);
 
-                // Cache still valid
-                 long ttl = getCacheTTL(clazz);
+                if (cacheEntry != null) {
 
-                if (currentTime - cacheEntry.getTimestamp() < ttl) {
+                    long currentTime =
+                            System.currentTimeMillis();
 
-                    return (List<T>) cacheEntry.getData();
+                    // Cache still valid
+                    if (currentTime - cacheEntry.getTimestamp() < ttl) {
+
+                        return (List<T>) cacheEntry.getData();
+                    }
+
+                    // Cache expired
+                    cache.remove(sheetName);
                 }
             }
 
-            // Cache Miss / Expired
+            /*
+             * ============================================================
+             * CACHE MISS / CACHE DISABLED
+             * ============================================================
+             */
+
             List<List<Object>> rows =
                     googleSheetService.getAllRows(sheetName);
 
@@ -102,17 +120,31 @@ public class GoogleEntityManager {
                     .map(row -> ReflectionUtil.toEntity(clazz, row))
                     .toList();
 
-            // Store in Cache
-            cache.put(
-                    sheetName,
-                    new CacheEntry<>(entities, System.currentTimeMillis())
-            );
+            /*
+             * ============================================================
+             * STORE IN CACHE ONLY IF CACHE IS ENABLED
+             * ============================================================
+             */
+
+            if (ttl > 0) {
+
+                cache.put(
+                        sheetName,
+                        new CacheEntry<>(
+                                entities,
+                                System.currentTimeMillis()
+                        )
+                );
+            }
 
             return entities;
 
         } catch (Exception e) {
 
-            throw new RuntimeException("Failed to fetch entities.", e);
+            throw new RuntimeException(
+                    "Failed to fetch entities.",
+                    e
+            );
         }
     }
 
@@ -206,12 +238,15 @@ public class GoogleEntityManager {
 
     }
 
-    private long getCacheTTL(Class<?> clazz) {
+    private long getCacheTTL(Class<?> entityClass) {
 
         CacheableEntity annotation =
-                clazz.getAnnotation(CacheableEntity.class);
+                entityClass.getAnnotation(CacheableEntity.class);
 
-        return annotation.ttl() * 1000;
+        if (annotation == null) {
+            return 0;
+        }
 
+        return annotation.ttl();
     }
 }

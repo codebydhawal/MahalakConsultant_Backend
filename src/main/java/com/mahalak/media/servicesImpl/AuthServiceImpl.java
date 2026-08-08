@@ -211,6 +211,15 @@ public class AuthServiceImpl implements AuthService {
 
         UserResponse response = userMapper.toResponse(user);
 
+        entityManager.findAll(UserInfo.class).stream()
+                .filter(userInfo -> user.getId().toString().equals(userInfo.getUserId()))
+                // A user may have uploaded a replacement image; return the most recent one.
+                .reduce((previous, latest) -> latest)
+                .ifPresent(userInfo -> {
+                    response.setProfileImageName(userInfo.getProfileImageName());
+                    response.setProfileImageUrl(userInfo.getProfileImageUrl());
+                });
+
         response.setAddresses(
                 addressService.getAddressesByUser(user.getId())
         );

@@ -13,6 +13,8 @@ public interface IAddressService {
 
     List<AddressResponse> getAllAddresses();
 
+    List<String> getLocations();
+
     List<AddressResponse> getAddressesByUser();
     List<AddressResponse> getAddressesByUser(Long userId);
 

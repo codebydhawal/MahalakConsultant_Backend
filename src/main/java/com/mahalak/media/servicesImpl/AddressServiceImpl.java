@@ -19,6 +19,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -96,6 +99,19 @@ public class AddressServiceImpl implements IAddressService {
                                         java.util.Comparator.reverseOrder())
                 )
                 .map(addressMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<String> getLocations() {
+        return entityManager.findAll(Address.class).stream()
+                .filter(address -> !Boolean.TRUE.equals(address.getIsAddressDeleted()))
+                .map(Address::getCity)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(city -> !city.isEmpty())
+                .collect(Collectors.toCollection(() -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER)))
+                .stream()
                 .toList();
     }
 

@@ -72,6 +72,21 @@ public class AddressController {
     }
 
     /**
+     * Get Available Locations
+     */
+    @GetMapping("/locations")
+    public ResponseEntity<ApiResponse<List<String>>> getLocations() {
+
+        List<String> response = addressService.getLocations();
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Locations fetched successfully.",
+                        response));
+    }
+
+    /**
      * Get Logged In User Addresses
      */
     @GetMapping("/get-by-user")
