@@ -66,10 +66,7 @@ public class HeaderSynchronizer {
      */
     private void ensureSheetExists(String sheetName) throws IOException {
 
-        Spreadsheet spreadsheet =
-                sheetsService.spreadsheets()
-                        .get(spreadsheetId)
-                        .execute();
+        Spreadsheet spreadsheet = sheetMetadataUtil.getSpreadsheetMetadata();
 
         for (Sheet sheet : spreadsheet.getSheets()) {
 
@@ -97,6 +94,7 @@ public class HeaderSynchronizer {
         sheetsService.spreadsheets()
                 .batchUpdate(spreadsheetId, body)
                 .execute();
+        sheetMetadataUtil.invalidateCache();
     }
 
     /**

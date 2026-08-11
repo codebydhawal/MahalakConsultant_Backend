@@ -81,6 +81,17 @@ public class SecurityConfig {
                         .requestMatchers("/rest/cart/**").authenticated()
                         .requestMatchers("/rest/media/**").authenticated()
                         .requestMatchers("/rest/address/**").authenticated()
+                        // Pricing rules directly change customer checkout totals.
+                        // Only administrators may view or modify them.
+                        .requestMatchers("/rest/tax-rule/**").hasRole("ADMIN")
+                        .requestMatchers("/rest/discount-rule/**").hasRole("ADMIN")
+                        .requestMatchers("/rest/shipping-rule/**").hasRole("ADMIN")
+                        .requestMatchers("/rest/payment/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/rest/payment/**").authenticated()
+                        .requestMatchers("/rest/order/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/rest/order/**").authenticated()
+                        .requestMatchers("/rest/commerce/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/rest/commerce/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

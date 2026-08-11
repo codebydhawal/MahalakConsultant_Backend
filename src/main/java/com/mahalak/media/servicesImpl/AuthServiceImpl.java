@@ -133,6 +133,7 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateResourceException("Email already exists.");
         }
 
+//        user.setPhoneNumber(request.getPhoneNumber());
         userMapper.updateUser(request, user);
 
         User updatedUser = userRepository.save(user);

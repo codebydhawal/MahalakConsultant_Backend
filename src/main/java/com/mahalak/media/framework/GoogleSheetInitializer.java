@@ -26,8 +26,10 @@ public class GoogleSheetInitializer {
                                 + entity.getSimpleName());
 
             } catch (Exception e) {
-
-                throw new RuntimeException(e);
+                // A temporary Google Sheets quota error must not stop the web application.
+                // The entity manager will retry synchronization on the first write.
+                System.err.println("Google Sheet synchronization skipped for "
+                        + entity.getSimpleName() + ": " + e.getMessage());
             }
 
         });

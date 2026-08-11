@@ -1,0 +1,3 @@
+package com.mahalak.media.IServices;
+import com.mahalak.media.dto.request.*; import com.mahalak.media.dto.response.CheckoutPreviewResponse; import com.mahalak.media.entity.*; import java.util.List;
+public interface ICommerceService { CheckoutPreviewResponse preview(CheckoutPreviewRequest request); Coupon saveCoupon(CouponRequest request, String couponId); List<Coupon> coupons(); Shipment createShipment(String orderId, ShipmentRequest request); Shipment getShipment(String orderId); Refund requestRefund(String orderId, RefundRequest request); Refund processRefund(String refundId, boolean approve); List<InventoryMovement> inventory(String productId); }
