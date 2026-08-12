@@ -3,6 +3,7 @@ package com.mahalak.media.auth;
 import com.mahalak.media.servicesImpl.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -63,6 +64,13 @@ public class SecurityConfig {
                                 "/v3/api-docs",
                                 "/swagger-resources/**",
                                 "/webjars/**"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/rest/product/**",
+                                "/rest/project/**", //search,random,getall
+                                "/rest/blog/**",
+                                "/rest/media/**",   //search,getMediaById,getAllMedia
+                                "/rest/team/**"
                         ).permitAll()
                         .requestMatchers("/api/drive/**").permitAll()
                         .requestMatchers("/google/login", "/oauth2/callback").permitAll()

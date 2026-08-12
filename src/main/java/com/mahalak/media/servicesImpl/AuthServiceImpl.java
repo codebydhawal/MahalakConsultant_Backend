@@ -121,24 +121,36 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserResponse updateUser(Long userId, UpdateUserRequest request, MultipartFile profileImage) {
+    public UserResponse updateUser(
+            Long userId,
+            UpdateUserRequest request,
+            MultipartFile profileImage) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
-        if (!user.getEmail().equals(request.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
+        boolean hasProfileImage = profileImage != null && !profileImage.isEmpty();
 
-            throw new DuplicateResourceException("Email already exists.");
+        if (request == null && !hasProfileImage) {
+            throw new IllegalArgumentException(
+                    "Provide profile details or a profile image to update.");
         }
 
-//        user.setPhoneNumber(request.getPhoneNumber());
-        userMapper.updateUser(request, user);
+        if (request != null) {
+            if (request.getEmail() != null
+                    && !user.getEmail().equalsIgnoreCase(request.getEmail())
+                    && userRepository.existsByEmail(request.getEmail())) {
+                throw new DuplicateResourceException("Email already exists.");
+            }
+
+            userMapper.updateUser(request, user);
+        }
+
+        if (hasProfileImage) {
+            handleProfilePicture(user, profileImage);
+        }
 
         User updatedUser = userRepository.save(user);
-        handleProfilePicture(updatedUser, profileImage);
-
         return buildUserResponse(updatedUser);
     }
 
@@ -228,7 +240,6 @@ public class AuthServiceImpl implements AuthService {
         return response;
     }
 
-
     private void handleProfilePicture(User user, MultipartFile profileImage) {
 
         if (profileImage == null || profileImage.isEmpty()) {
@@ -242,19 +253,51 @@ public class AuthServiceImpl implements AuthService {
             extension = originalName.substring(originalName.lastIndexOf("."));
         }
 
+        UserInfo userInfo = entityManager.findAll(UserInfo.class)
+                .stream()
+                .filter(info -> user.getId().toString().equals(info.getUserId()))
+                .findFirst()
+                .orElse(null);
+
+        String oldImageFileId =
+                userInfo != null ? userInfo.getProfileImageFileId() : null;
+
         String generatedFileName = "USRDP_" + UUID.randomUUID() + extension;
 
+        // 1. New image upload करें
         FileUploadResponseDto driveFile =
                 googleDriveService.upload(profileImage, generatedFileName);
 
-        UserInfo userInfo = UserInfo.builder()
-                .userId(user.getId().toString())
-                .profileImageName(generatedFileName)
-                .profileImageUrl(driveFile.getDownloadUrl())
-                .profileImageFileId(driveFile.getFileId())
-                .build();
+        try {
+            if (userInfo == null) {
+                // पहली profile image
+                userInfo = UserInfo.builder()
+                        .userId(user.getId().toString())
+                        .profileImageName(generatedFileName)
+                        .profileImageUrl(driveFile.getDownloadUrl())
+                        .profileImageFileId(driveFile.getFileId())
+                        .build();
 
+                entityManager.save(userInfo);
+            } else {
+                // Existing Google Sheet row update करें
+                userInfo.setProfileImageName(generatedFileName);
+                userInfo.setProfileImageUrl(driveFile.getDownloadUrl());
+                userInfo.setProfileImageFileId(driveFile.getFileId());
 
-        entityManager.save(userInfo);
+                entityManager.update(userInfo);
+            }
+
+            // 3. Sheet update होने के बाद पुरानी Drive image हटाएँ
+            if (oldImageFileId != null && !oldImageFileId.isBlank()) {
+                googleDriveService.delete(oldImageFileId);
+            }
+
+        } catch (Exception exception) {
+            // Sheet save/update fail होने पर newly uploaded file हटाएँ
+            googleDriveService.delete(driveFile.getFileId());
+
+            throw exception;
+        }
     }
 }

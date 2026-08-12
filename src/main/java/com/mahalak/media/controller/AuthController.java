@@ -100,7 +100,7 @@ public class AuthController {
     @PutMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @RequestParam Long userId,
-            @Valid @RequestPart("request") UpdateUserRequest request,
+            @Valid @RequestPart(value = "request", required = false) UpdateUserRequest request,
             @RequestPart(value = "profileImage", required = false) MultipartFile profileImage) {
 
         UserResponse response = authService.updateUser(userId, request,profileImage);
