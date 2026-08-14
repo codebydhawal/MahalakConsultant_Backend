@@ -75,7 +75,7 @@ public class ProductController {
     @PatchMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
             @RequestParam String productId,
-            @Valid @RequestPart("request") ProductRequest request,
+            @Valid @RequestPart(value = "request", required = false) ProductRequest request,
             @RequestPart(value = "file", required = false) MultipartFile file) {
 
         ProductResponse response =

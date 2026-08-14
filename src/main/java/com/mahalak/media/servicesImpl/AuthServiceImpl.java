@@ -132,7 +132,7 @@ public class AuthServiceImpl implements AuthService {
         boolean hasProfileImage = profileImage != null && !profileImage.isEmpty();
 
         if (request == null && !hasProfileImage) {
-            throw new IllegalArgumentException(
+            throw new BadRequestException(
                     "Provide profile details or a profile image to update.");
         }
 

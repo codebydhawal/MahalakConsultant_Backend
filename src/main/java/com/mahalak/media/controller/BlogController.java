@@ -55,7 +55,7 @@ public class BlogController {
     @PutMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BlogResponse>> updateBlog(
             @RequestParam String blogId,
-            @Valid @RequestPart("request") BlogRequest request,
+            @Valid @RequestPart(value = "request", required = false) BlogRequest request,
             @RequestPart(value = "featuredImage", required = false) MultipartFile featuredImage,
             @RequestPart(value = "blogDocument", required = false) MultipartFile blogDocument,
             @RequestPart(value = "authorImage", required = false) MultipartFile authorImage) {

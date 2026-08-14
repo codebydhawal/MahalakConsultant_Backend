@@ -102,13 +102,30 @@ public class TeamServiceImpl implements ITeamService {
                         new ResourceNotFoundException(
                                 "Team member not found with id : " + teamId));
 
-        team = teamMapper.updateEntity(request, team);
+        if (request == null && (file == null || file.isEmpty())) {
+            throw new BadRequestException("Provide team details or a profile image to update.");
+        }
+
+        if (request != null) {
+            team = teamMapper.updateEntity(request, team);
+        }
+
+        String oldFileId = team.getProfileImageFileId();
 
         handleProfileImage(team, file);
 
+        String newFileId = team.getProfileImageFileId();
+
         team.setUpdatedAt(LocalDateTime.now());
 
-        entityManager.update(team);
+        try {
+            entityManager.update(team);
+        } catch (Exception exception) {
+            deleteDriveFileQuietly(newFileId, oldFileId);
+            throw exception;
+        }
+
+        deleteDriveFileQuietly(oldFileId, newFileId);
 
         return teamMapper.toResponse(team);
     }
@@ -195,6 +212,17 @@ public class TeamServiceImpl implements ITeamService {
 
             team.setProfileImageUrl(
                     driveFile.getDownloadUrl());
+        }
+    }
+
+    private void deleteDriveFileQuietly(String fileId, String retainedFileId) {
+        if (fileId == null || fileId.isBlank() || fileId.equals(retainedFileId)) {
+            return;
+        }
+        try {
+            googleDriveService.delete(fileId);
+        } catch (Exception ignored) {
+            // The entity has already been saved with the replacement file.
         }
     }
 }

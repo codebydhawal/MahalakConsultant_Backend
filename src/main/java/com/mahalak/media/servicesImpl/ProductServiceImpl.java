@@ -10,15 +10,18 @@ import com.mahalak.media.exception.BadRequestException;
 import com.mahalak.media.framework.GoogleEntityManager;
 import com.mahalak.media.mapper.ProductMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductServiceImpl implements IProductService {
 
     private final GoogleEntityManager entityManager;
@@ -95,32 +98,54 @@ public class ProductServiceImpl implements IProductService {
     }
 
     @Override
-    public ProductResponse updateProduct(String productId,
-                                         ProductRequest request,
-                                         MultipartFile file) {
+    public ProductResponse updateProduct(
+            String productId,
+            ProductRequest request,
+            MultipartFile file) {
 
         Product product = entityManager.findById(Product.class, productId)
                 .orElseThrow(() ->
-                        new RuntimeException("Product not found with id : " + productId));
+                        new RuntimeException(
+                                "Product not found with id : " + productId
+                        ));
 
-        // Update normal fields
-        productMapper.updateEntity(request, product);
+        if (request == null && (file == null || file.isEmpty())) {
+            throw new BadRequestException("Provide product details or an image to update.");
+        }
 
-        // Update image if a new file is provided
+        // Store old image information BEFORE replacing it
+        String oldImageFileId = product.getImageFileId();
+
+        // Update normal product fields
+        if (request != null) {
+            productMapper.updateEntity(request, product);
+        }
+
+        String newImageFileId = null;
+
+        // Update image only if a new file is provided
         if (file != null && !file.isEmpty()) {
 
             String originalName = file.getOriginalFilename();
             String extension = "";
 
             if (originalName != null && originalName.contains(".")) {
-                extension = originalName.substring(originalName.lastIndexOf("."));
+                extension = originalName.substring(
+                        originalName.lastIndexOf(".")
+                );
             }
 
-            String generatedFileName = "PRD_" + UUID.randomUUID() + extension;
+            String generatedFileName =
+                    "PRD_" + UUID.randomUUID() + extension;
 
-            // Upload new image
+            // Upload NEW image
             FileUploadResponseDto driveFile =
-                    googleDriveService.upload(file, generatedFileName);
+                    googleDriveService.upload(
+                            file,
+                            generatedFileName
+                    );
+
+            newImageFileId = driveFile.getFileId();
 
             product.setImageName(driveFile.getFileName());
             product.setImageFileId(driveFile.getFileId());
@@ -129,7 +154,60 @@ public class ProductServiceImpl implements IProductService {
 
         product.setUpdatedAt(LocalDateTime.now());
 
-        entityManager.update(product);
+        try {
+
+            // Save product with new image information
+            entityManager.update(product);
+
+        } catch (Exception exception) {
+
+            // Product update failed.
+            // Delete the newly uploaded image so there is no orphan file.
+            if (newImageFileId != null && !newImageFileId.isBlank()) {
+
+                try {
+                    googleDriveService.delete(newImageFileId);
+
+                } catch (Exception cleanupException) {
+
+                    log.error(
+                            "Failed to delete newly uploaded product image. FileId: {}",
+                            newImageFileId,
+                            cleanupException
+                    );
+                }
+            }
+
+            throw exception;
+        }
+
+        // Delete OLD image only after product update succeeds
+        if (file != null
+                && !file.isEmpty()
+                && oldImageFileId != null
+                && !oldImageFileId.isBlank()
+                && !oldImageFileId.equals(newImageFileId)) {
+
+            try {
+
+                googleDriveService.delete(oldImageFileId);
+
+                log.info(
+                        "Old product image deleted successfully. FileId: {}",
+                        oldImageFileId
+                );
+
+            } catch (Exception exception) {
+
+                // Do NOT delete the new image.
+                // Product is already pointing to the new image.
+                log.error(
+                        "Failed to delete old product image. FileId: {}",
+                        oldImageFileId,
+                        exception
+                );
+            }
+        }
 
         return productMapper.toResponse(product);
     }

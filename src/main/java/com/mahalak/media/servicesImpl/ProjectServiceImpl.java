@@ -10,6 +10,7 @@ import com.mahalak.media.dto.wrapper.DownloadResponse;
 import com.mahalak.media.dto.wrapper.FileUploadResponseDto;
 import com.mahalak.media.entity.Product;
 import com.mahalak.media.entity.Project;
+import com.mahalak.media.exception.BadRequestException;
 import com.mahalak.media.exception.ResourceNotFoundException;
 import com.mahalak.media.framework.GoogleEntityManager;
 import com.mahalak.media.mapper.ProductMapper;
@@ -72,14 +73,35 @@ public class ProjectServiceImpl implements IProjectService {
     public ProjectResponse updateProject(String projectId, ProjectRequest request, MultipartFile file, MultipartFile document) {
         Project project = entityManager.findById(Project.class, projectId).orElseThrow(() -> new RuntimeException("project not found with id : " + projectId));
 
-        projectMapper.updateEntity(request, project);
+        if (request == null && (file == null || file.isEmpty()) && (document == null || document.isEmpty())) {
+            throw new BadRequestException("Provide project details, a thumbnail, or a document to update.");
+        }
+
+        if (request != null) {
+            projectMapper.updateEntity(request, project);
+        }
+
+        String oldThumbnailFileId = project.getThumbnailFileId();
+        String oldDocumentFileId = project.getDocumentFileId();
 
         handleThumbnailImage(project, file);
         handleContentFile(project, document);
 
+        String newThumbnailFileId = project.getThumbnailFileId();
+        String newDocumentFileId = project.getDocumentFileId();
+
         project.setUpdatedAt(LocalDateTime.now());
 
-        entityManager.update(project);
+        try {
+            entityManager.update(project);
+        } catch (Exception exception) {
+            deleteDriveFileQuietly(newThumbnailFileId, oldThumbnailFileId);
+            deleteDriveFileQuietly(newDocumentFileId, oldDocumentFileId);
+            throw exception;
+        }
+
+        deleteDriveFileQuietly(oldThumbnailFileId, newThumbnailFileId);
+        deleteDriveFileQuietly(oldDocumentFileId, newDocumentFileId);
 
         return projectMapper.toResponse(project);
     }
@@ -188,6 +210,17 @@ public class ProjectServiceImpl implements IProjectService {
             project.setDocumentFileId(driveFile.getFileId());
             project.setDocumentUrl(driveFile.getDownloadUrl());
 
+        }
+    }
+
+    private void deleteDriveFileQuietly(String fileId, String retainedFileId) {
+        if (fileId == null || fileId.isBlank() || fileId.equals(retainedFileId)) {
+            return;
+        }
+        try {
+            googleDriveService.delete(fileId);
+        } catch (Exception ignored) {
+            // The saved entity already references the replacement file.
         }
     }
 }

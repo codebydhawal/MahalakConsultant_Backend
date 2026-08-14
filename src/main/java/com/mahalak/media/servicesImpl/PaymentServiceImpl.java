@@ -87,6 +87,7 @@ public class PaymentServiceImpl implements IPaymentService {
         String originalName = screenshot.getOriginalFilename();
         String extension = originalName != null && originalName.contains(".")
                 ? originalName.substring(originalName.lastIndexOf(".")) : ".jpg";
+        String oldScreenshotFileId = payment.getScreenshotFileId();
         FileUploadResponseDto uploaded = googleDriveService.upload(
                 screenshot, "PAY_" + payment.getPaymentId() + "_" + UUID.randomUUID() + extension);
 
@@ -100,8 +101,15 @@ public class PaymentServiceImpl implements IPaymentService {
         Order order = findOrder(payment.getOrderId());
         order.setOrderStatus(OrderStatus.PAYMENT_VERIFICATION_PENDING.name());
         order.setUpdatedAt(LocalDateTime.now());
-        entityManager.update(payment);
-        entityManager.update(order);
+        try {
+            entityManager.update(payment);
+            entityManager.update(order);
+        } catch (Exception exception) {
+            deleteDriveFileQuietly(uploaded.getFileId(), oldScreenshotFileId);
+            throw exception;
+        }
+
+        deleteDriveFileQuietly(oldScreenshotFileId, uploaded.getFileId());
 
         return toResponse(payment);
     }
@@ -190,5 +198,16 @@ public class PaymentServiceImpl implements IPaymentService {
                 .createdAt(payment.getCreatedAt())
                 .updatedAt(payment.getUpdatedAt())
                 .build();
+    }
+
+    private void deleteDriveFileQuietly(String fileId, String retainedFileId) {
+        if (fileId == null || fileId.isBlank() || fileId.equals(retainedFileId)) {
+            return;
+        }
+        try {
+            googleDriveService.delete(fileId);
+        } catch (Exception ignored) {
+            // The payment already references the replacement screenshot.
+        }
     }
 }

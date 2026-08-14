@@ -11,7 +11,7 @@ import java.util.List;
 public interface IBlogService {
     BlogResponse addBlog(@Valid BlogRequest request, MultipartFile featuredImage, MultipartFile blogDocument, MultipartFile authorImage);
 
-    BlogResponse updateBlog(String blogId, @Valid BlogRequest request, MultipartFile featuredImage, MultipartFile authorImage, MultipartFile image);
+    BlogResponse updateBlog(String blogId, @Valid BlogRequest request, MultipartFile featuredImage, MultipartFile blogDocument, MultipartFile authorImage);
 
     BlogResponse getBlogById(String blogId);
 

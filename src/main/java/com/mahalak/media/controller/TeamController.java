@@ -89,7 +89,7 @@ public class TeamController {
 
             @RequestParam String teamId,
 
-            @Valid @RequestPart("request") TeamRequest request,
+            @Valid @RequestPart(value = "request", required = false) TeamRequest request,
 
             @RequestPart(value = "file", required = false)
             MultipartFile file) {

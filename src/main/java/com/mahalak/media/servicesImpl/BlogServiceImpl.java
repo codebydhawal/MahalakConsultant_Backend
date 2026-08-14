@@ -7,6 +7,7 @@ import com.mahalak.media.dto.response.BlogResponse;
 import com.mahalak.media.dto.wrapper.FileUploadResponseDto;
 import com.mahalak.media.entity.Blog;
 import com.mahalak.media.enums.BlogStatus;
+import com.mahalak.media.exception.BadRequestException;
 import com.mahalak.media.framework.GoogleEntityManager;
 import com.mahalak.media.mapper.BlogMapper;
 import lombok.RequiredArgsConstructor;
@@ -54,21 +55,50 @@ public class BlogServiceImpl implements IBlogService {
     public BlogResponse updateBlog(String blogId,
                                    BlogRequest request,
                                    MultipartFile featuredImage,
-                                   MultipartFile authorImage, MultipartFile document) {
+                                   MultipartFile document,
+                                   MultipartFile authorImage) {
 
         Blog blog = entityManager.findById(Blog.class, blogId)
                 .orElseThrow(() ->
                         new RuntimeException("Blog not found with id : " + blogId));
 
-        blogMapper.updateEntity(request, blog);
+        if (request == null
+                && (featuredImage == null || featuredImage.isEmpty())
+                && (document == null || document.isEmpty())
+                && (authorImage == null || authorImage.isEmpty())) {
+            throw new BadRequestException("Provide blog details or a file to update.");
+        }
+
+        if (request != null) {
+            blogMapper.updateEntity(request, blog);
+        }
+
+        String oldFeaturedImageFileId = blog.getFeaturedImageFileId();
+        String oldDocumentFileId = blog.getContentFileId();
+        String oldAuthorImageFileId = blog.getAuthorImageFileId();
 
         handleFeaturedImage(blog, featuredImage);
         handleAuthorImage(blog, authorImage);
         handleContentFile(blog, document);
 
+        String newFeaturedImageFileId = blog.getFeaturedImageFileId();
+        String newDocumentFileId = blog.getContentFileId();
+        String newAuthorImageFileId = blog.getAuthorImageFileId();
+
         blog.setUpdatedAt(LocalDateTime.now());
 
-        entityManager.update(blog);
+        try {
+            entityManager.update(blog);
+        } catch (Exception exception) {
+            deleteDriveFileQuietly(newFeaturedImageFileId, oldFeaturedImageFileId);
+            deleteDriveFileQuietly(newDocumentFileId, oldDocumentFileId);
+            deleteDriveFileQuietly(newAuthorImageFileId, oldAuthorImageFileId);
+            throw exception;
+        }
+
+        deleteDriveFileQuietly(oldFeaturedImageFileId, newFeaturedImageFileId);
+        deleteDriveFileQuietly(oldDocumentFileId, newDocumentFileId);
+        deleteDriveFileQuietly(oldAuthorImageFileId, newAuthorImageFileId);
 
         return blogMapper.toResponse(blog);
     }
@@ -208,7 +238,7 @@ public class BlogServiceImpl implements IBlogService {
                     googleDriveService.upload(featuredImage, generatedFileName);
 
             blog.setFeaturedImageName(generatedFileName);
-            blog.setAuthorImageFileId(driveFile.getFileId());
+            blog.setFeaturedImageFileId(driveFile.getFileId());
             blog.setFeaturedImageUrl(driveFile.getDownloadUrl());
         }
     }
@@ -250,15 +280,21 @@ public class BlogServiceImpl implements IBlogService {
             FileUploadResponseDto driveFile =
                     googleDriveService.upload(document, generatedFileName);
 
-            System.out.println("============== PDF Upload ==============");
-            System.out.println("File Id      : " + driveFile.getFileId());
-            System.out.println("Download Url : " + driveFile.getDownloadUrl());
-            System.out.println("========================================");
-
             blog.setContentFileName(generatedFileName);
             blog.setContentFileId(driveFile.getFileId());
             blog.setContentFileUrl(driveFile.getDownloadUrl());
 
+        }
+    }
+
+    private void deleteDriveFileQuietly(String fileId, String retainedFileId) {
+        if (fileId == null || fileId.isBlank() || fileId.equals(retainedFileId)) {
+            return;
+        }
+        try {
+            googleDriveService.delete(fileId);
+        } catch (Exception ignored) {
+            // The entity has already been saved with the replacement file.
         }
     }
 }

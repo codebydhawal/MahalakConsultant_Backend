@@ -89,7 +89,7 @@ public class MediaController {
 
             @RequestParam String mediaId,
 
-            @Valid @RequestPart("request") MediaRequest request,
+            @Valid @RequestPart(value = "request", required = false) MediaRequest request,
 
             @RequestPart(value = "file", required = false)
             MultipartFile file) {

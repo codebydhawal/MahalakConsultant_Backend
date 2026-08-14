@@ -102,13 +102,30 @@ public class MediaServiceImpl implements IMediaService {
                         new ResourceNotFoundException(
                                 "Media not found with id : " + mediaId));
 
-        media = mediaMapper.updateEntity(request, media);
+        if (request == null && (file == null || file.isEmpty())) {
+            throw new BadRequestException("Provide media details or a file to update.");
+        }
+
+        if (request != null) {
+            media = mediaMapper.updateEntity(request, media);
+        }
+
+        String oldFileId = media.getThumbnailImageFileId();
 
         handleThumbnail(media, file);
 
+        String newFileId = media.getThumbnailImageFileId();
+
         media.setUpdatedAt(LocalDateTime.now());
 
-        entityManager.update(media);
+        try {
+            entityManager.update(media);
+        } catch (Exception exception) {
+            deleteDriveFileQuietly(newFileId, oldFileId);
+            throw exception;
+        }
+
+        deleteDriveFileQuietly(oldFileId, newFileId);
 
         return mediaMapper.toResponse(media);
     }
@@ -195,6 +212,17 @@ public class MediaServiceImpl implements IMediaService {
 
             media.setThumbnailImageUrl(
                     driveFile.getDownloadUrl());
+        }
+    }
+
+    private void deleteDriveFileQuietly(String fileId, String retainedFileId) {
+        if (fileId == null || fileId.isBlank() || fileId.equals(retainedFileId)) {
+            return;
+        }
+        try {
+            googleDriveService.delete(fileId);
+        } catch (Exception ignored) {
+            // The entity has already been saved with the replacement file.
         }
     }
 }

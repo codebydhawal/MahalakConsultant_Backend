@@ -66,7 +66,7 @@ public class ProjectController {
     @PatchMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ProjectResponse>> updateProject(
             @RequestParam String projectId,
-            @Valid @RequestPart("request") ProjectRequest request,
+            @Valid @RequestPart(value = "request", required = false) ProjectRequest request,
             @RequestPart(value = "file", required = false) MultipartFile file,
             @RequestPart(value = "document", required = false) MultipartFile document) {
 
