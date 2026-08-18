@@ -10,10 +10,13 @@ import com.google.auth.oauth2.GoogleCredentials;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 
@@ -26,10 +29,16 @@ public class GoogleSheetsConfig {
     @Value("${google.sheet.credentials}")
     private String credentialsPath;
 
+    private final ResourceLoader resourceLoader;
+
+    public GoogleSheetsConfig(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
+
     @Bean
     public Sheets sheetsService() throws IOException, GeneralSecurityException {
 
-        InputStream inputStream = new ClassPathResource(credentialsPath).getInputStream();
+        InputStream inputStream = openCredentials(credentialsPath);
 
         GoogleCredentials credentials = GoogleCredentials
                 .fromStream(inputStream)
@@ -48,5 +57,15 @@ public class GoogleSheetsConfig {
         )
                 .setApplicationName(applicationName)
                 .build();
+    }
+
+    private InputStream openCredentials(String path) throws IOException {
+        Path filePath = Path.of(path);
+        if (Files.exists(filePath)) {
+            return Files.newInputStream(filePath);
+        }
+
+        Resource resource = resourceLoader.getResource("classpath:" + path);
+        return resource.getInputStream();
     }
 }

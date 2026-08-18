@@ -13,25 +13,33 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.DriveScopes;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 
 @Component
 public class GoogleOAuthHelper {
 
-    private static final String TOKENS_DIRECTORY = "tokens";
-
     private final NetHttpTransport HTTP_TRANSPORT;
     private final GoogleAuthorizationCodeFlow flow;
+    private final String redirectUri;
 
-    public GoogleOAuthHelper() throws Exception {
+    public GoogleOAuthHelper(
+            ResourceLoader resourceLoader,
+            @Value("${google.drive.credentials}") String credentialsPath,
+            @Value("${google.oauth.tokens-directory}") String tokensDirectory,
+            @Value("${google.oauth.redirect-uri}") String redirectUri) throws Exception {
 
         HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+        this.redirectUri = redirectUri;
 
-        InputStream inputStream =
-                getClass().getClassLoader().getResourceAsStream("google/credentials.json");
+        InputStream inputStream = openCredentials(resourceLoader, credentialsPath);
 
         if (inputStream == null) {
             throw new RuntimeException("credentials.json not found");
@@ -50,7 +58,7 @@ public class GoogleOAuthHelper {
                 Collections.singletonList(DriveScopes.DRIVE)
         )
                 .setAccessType("offline")
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY)))
+                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(tokensDirectory)))
                 .build();
     }
 
@@ -62,7 +70,7 @@ public class GoogleOAuthHelper {
         GoogleAuthorizationCodeRequestUrl authorizationUrl =
                 flow.newAuthorizationUrl();
 
-        authorizationUrl.setRedirectUri("http://localhost:8080/oauth2/callback");
+        authorizationUrl.setRedirectUri(redirectUri);
 
         return authorizationUrl.build();
     }
@@ -74,7 +82,7 @@ public class GoogleOAuthHelper {
 
         GoogleTokenResponse tokenResponse =
                 flow.newTokenRequest(code)
-                        .setRedirectUri("http://localhost:8080/oauth2/callback")
+                        .setRedirectUri(redirectUri)
                         .execute();
 
         return flow.createAndStoreCredential(tokenResponse, "user");
@@ -92,5 +100,15 @@ public class GoogleOAuthHelper {
         }
 
         return credential;
+    }
+
+    private InputStream openCredentials(ResourceLoader resourceLoader, String path) throws Exception {
+        Path filePath = Path.of(path);
+        if (Files.exists(filePath)) {
+            return Files.newInputStream(filePath);
+        }
+
+        Resource resource = resourceLoader.getResource("classpath:" + path);
+        return resource.getInputStream();
     }
 }
