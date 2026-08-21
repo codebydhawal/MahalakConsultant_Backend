@@ -42,15 +42,33 @@ public class HeaderSynchronizer {
         // Add Missing Columns
         if (sheetHeaders.size() < entityHeaders.size()) {
 
-            int columnsToAdd = entityHeaders.size() - sheetHeaders.size();
+            int columnsToAdd =
+                    entityHeaders.size() - sheetHeaders.size();
 
-            for (int i = 0; i < columnsToAdd; i++) {
-                requests.add(createColumnRequest(sheetName));
-            }
+            SheetMetadata metadata =
+                    sheetMetadataUtil.getMetadata(sheetName);
+
+            Integer sheetId = metadata.getSheetId();
+            int lastColumn = metadata.getTotalColumns();
+
+            InsertDimensionRequest insertDimension =
+                    new InsertDimensionRequest()
+                            .setRange(
+                                    new DimensionRange()
+                                            .setSheetId(sheetId)
+                                            .setDimension("COLUMNS")
+                                            .setStartIndex(lastColumn)
+                                            .setEndIndex(lastColumn + columnsToAdd)
+                            )
+                            .setInheritFromBefore(true);
+
+            Request request =
+                    new Request()
+                            .setInsertDimension(insertDimension);
 
             BatchUpdateSpreadsheetRequest batchRequest =
                     new BatchUpdateSpreadsheetRequest()
-                            .setRequests(requests);
+                            .setRequests(List.of(request));
 
             sheetsService.spreadsheets()
                     .batchUpdate(spreadsheetId, batchRequest)
