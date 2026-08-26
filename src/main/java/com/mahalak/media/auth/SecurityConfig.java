@@ -71,7 +71,8 @@ public class SecurityConfig {
                                 "/rest/project/**", //search,random,getall
                                 "/rest/blog/**",
                                 "/rest/media/**",   //search,getMediaById,getAllMedia
-                                "/rest/team/**"
+                                "/rest/team/**",
+                                "/rest/test/**"
                         ).permitAll()
                         .requestMatchers("/api/drive/**").permitAll()
                         .requestMatchers("/google/login", "/oauth2/callback").permitAll()
