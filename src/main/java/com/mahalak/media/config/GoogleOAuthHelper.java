@@ -1,8 +1,9 @@
 package com.mahalak.media.config;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
-import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
+import com.google.api.client.auth.oauth2.BearerToken;
+import com.google.api.client.auth.oauth2.ClientParametersAuthentication;
+import com.google.api.client.http.GenericUrl;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
@@ -10,8 +11,9 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeReque
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.DriveScopes;
+import com.mahalak.media.entity.GoogleOAuthToken;
+import com.mahalak.media.repository.GoogleOAuthTokenRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -28,16 +30,19 @@ public class GoogleOAuthHelper {
 
     private final NetHttpTransport HTTP_TRANSPORT;
     private final GoogleAuthorizationCodeFlow flow;
+    private final GoogleClientSecrets clientSecrets;
     private final String redirectUri;
+    private final GoogleOAuthTokenRepository googleOAuthTokenRepository;
 
     public GoogleOAuthHelper(
             ResourceLoader resourceLoader,
             @Value("${google.drive.credentials}") String credentialsPath,
-            @Value("${google.oauth.tokens-directory}") String tokensDirectory,
-            @Value("${google.oauth.redirect-uri}") String redirectUri) throws Exception {
+            @Value("${google.oauth.redirect-uri}") String redirectUri,
+            GoogleOAuthTokenRepository googleOAuthTokenRepository) throws Exception {
 
         HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         this.redirectUri = redirectUri;
+        this.googleOAuthTokenRepository = googleOAuthTokenRepository;
 
         InputStream inputStream = openCredentials(resourceLoader, credentialsPath);
 
@@ -45,7 +50,7 @@ public class GoogleOAuthHelper {
             throw new RuntimeException("credentials.json not found");
         }
 
-        GoogleClientSecrets clientSecrets =
+        this.clientSecrets =
                 GoogleClientSecrets.load(
                         GsonFactory.getDefaultInstance(),
                         new InputStreamReader(inputStream)
@@ -54,11 +59,10 @@ public class GoogleOAuthHelper {
         flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT,
                 GsonFactory.getDefaultInstance(),
-                clientSecrets,
+                this.clientSecrets,
                 Collections.singletonList(DriveScopes.DRIVE)
         )
                 .setAccessType("offline")
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(tokensDirectory)))
                 .build();
     }
 
@@ -71,6 +75,9 @@ public class GoogleOAuthHelper {
                 flow.newAuthorizationUrl();
 
         authorizationUrl.setRedirectUri(redirectUri);
+        // Ensures Google returns a refresh token when the account has already
+        // granted this OAuth client permission in the past.
+        authorizationUrl.set("prompt", "consent");
 
         return authorizationUrl.build();
     }
@@ -85,7 +92,26 @@ public class GoogleOAuthHelper {
                         .setRedirectUri(redirectUri)
                         .execute();
 
-        return flow.createAndStoreCredential(tokenResponse, "user");
+        String refreshToken = tokenResponse.getRefreshToken();
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new IllegalStateException("Google did not return a refresh token. Please authorize again.");
+        }
+
+        googleOAuthTokenRepository.save(GoogleOAuthToken.builder()
+                .provider(GoogleOAuthToken.GOOGLE_DRIVE_PROVIDER)
+                .refreshToken(refreshToken)
+                .build());
+
+        Credential credential = createCredential(refreshToken);
+        credential.setAccessToken(tokenResponse.getAccessToken());
+
+        if (tokenResponse.getExpiresInSeconds() != null) {
+            credential.setExpirationTimeMilliseconds(
+                    System.currentTimeMillis() + tokenResponse.getExpiresInSeconds() * 1000
+            );
+        }
+
+        return credential;
     }
 
     /**
@@ -93,12 +119,31 @@ public class GoogleOAuthHelper {
      */
     public Credential getCredential() throws Exception {
 
-        Credential credential = flow.loadCredential("user");
+        GoogleOAuthToken token = googleOAuthTokenRepository
+                .findById(GoogleOAuthToken.GOOGLE_DRIVE_PROVIDER)
+                .orElseThrow(() -> new RuntimeException(
+                        "Google account not authenticated. Open /google/login once to authorize Google Drive."
+                ));
 
-        if (credential == null) {
-            throw new RuntimeException("Google account not authenticated.");
-        }
+        return createCredential(token.getRefreshToken());
+    }
 
+    /**
+     * Creates a credential that can exchange the database refresh token for a
+     * short-lived Google access token. No token data is written to the filesystem.
+     */
+    private Credential createCredential(String refreshToken) {
+        Credential credential = new Credential.Builder(BearerToken.authorizationHeaderAccessMethod())
+                .setTransport(HTTP_TRANSPORT)
+                .setJsonFactory(GsonFactory.getDefaultInstance())
+                .setTokenServerUrl(new GenericUrl("https://oauth2.googleapis.com/token"))
+                .setClientAuthentication(new ClientParametersAuthentication(
+                        clientSecrets.getDetails().getClientId(),
+                        clientSecrets.getDetails().getClientSecret()
+                ))
+                .build();
+
+        credential.setRefreshToken(refreshToken);
         return credential;
     }
 

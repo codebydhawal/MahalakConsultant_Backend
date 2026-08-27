@@ -48,7 +48,6 @@ GOOGLE_SHEET_SPREADSHEET_ID=<your-existing-spreadsheet-id>
 GOOGLE_DRIVE_CREDENTIALS_PATH=/etc/secrets/google-drive-oauth.json
 GOOGLE_SHEET_CREDENTIALS_PATH=/etc/secrets/google-sheets-service-account.json
 GOOGLE_OAUTH_REDIRECT_URI=https://<your-render-service-name>.onrender.com/oauth2/callback
-GOOGLE_OAUTH_TOKENS_DIRECTORY=/var/data/google-oauth-tokens
 
 APP_BOOTSTRAP_ROLES_ENABLED=true
 ```
@@ -63,9 +62,9 @@ The first time the deployed service uses Google Drive, open:
 https://<your-render-service-name>.onrender.com/google/login
 ```
 
-Complete the Google login. The resulting refresh token is saved under `GOOGLE_OAUTH_TOKENS_DIRECTORY`.
+Complete the Google login. The resulting refresh token is saved in the configured PostgreSQL database's `google_oauth_tokens` table.
 
-Render's normal filesystem is erased on restart/redeploy. To retain the Drive login, attach a persistent disk at `/var/data` and use a paid Render web service. Without a disk, repeat the Google Drive login after every restart.
+Because the refresh token is in PostgreSQL, Render restarts and redeploys do not require a persistent disk or another Google login. Repeat the login only if the Google refresh token is revoked or becomes invalid.
 
 ## Verify after deployment
 
